@@ -79,6 +79,7 @@ footer{background:#102f20;color:#dce8df;padding:45px 0 85px}.foot{display:grid;g
         <input id="inquiryWebsite" name="website" type="text" tabindex="-1" autocomplete="off">
       </div>
       <input type="hidden" id="inquirySourceUrl" name="sourceUrl" value="">
+      <input type="hidden" id="inquiryRequestId" name="requestId" value="">
       <button class="btn gold inquiry-submit" id="submitInquiry" type="submit">Submit Inquiry</button>
       <p class="inquiry-status" id="inquiryStatus" role="status" aria-live="polite"></p>
       <p class="inquiry-privacy">आपकी जानकारी केवल इस inquiry का जवाब देने के लिए उपयोग की जाएगी।</p>
@@ -95,8 +96,10 @@ footer{background:#102f20;color:#dce8df;padding:45px 0 85px}.foot{display:grid;g
   const submit = document.getElementById('submitInquiry');
   const mobile = document.getElementById('inquiryMobile');
   const sourceUrl = document.getElementById('inquirySourceUrl');
+  const requestIdField = document.getElementById('inquiryRequestId');
   const endpoint = (window.ORTHOGOLD_INQUIRY_ENDPOINT || '').trim();
   let requestTimer = null;
+  let activeRequestId = '';
 
   document.getElementById('openInquiry').addEventListener('click', function () {
     status.textContent = '';
@@ -130,6 +133,8 @@ footer{background:#102f20;color:#dce8df;padding:45px 0 85px}.foot{display:grid;g
     }
     mobile.value = digits;
     sourceUrl.value = window.location.href;
+    activeRequestId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+    requestIdField.value = activeRequestId;
     form.action = endpoint;
     submit.disabled = true;
     status.textContent = 'आपकी inquiry भेजी जा रही है…';
@@ -143,9 +148,10 @@ footer{background:#102f20;color:#dce8df;padding:45px 0 85px}.foot{display:grid;g
   });
 
   window.addEventListener('message', function (event) {
-    if (event.source !== document.getElementById('inquiryResponseFrame').contentWindow) return;
     const data = event.data;
     if (!data || data.type !== 'orthogold-inquiry-result') return;
+    if (!/^https:\/\/(?:script\.google\.com|[a-z0-9-]*script\.googleusercontent\.com)$/i.test(event.origin)) return;
+    if (!activeRequestId || data.requestId !== activeRequestId) return;
     if (requestTimer) clearTimeout(requestTimer);
     submit.disabled = false;
     if (data.ok) {
