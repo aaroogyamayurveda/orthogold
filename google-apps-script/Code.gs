@@ -13,11 +13,13 @@ function setupInquirySheet() {
 }
 
 function doPost(e) {
+  let requestId = '';
   try {
     const params = (e && e.parameter) || {};
+    requestId = String(params.requestId || '').slice(0, 100);
     // Silently accept honeypot submissions without storing them.
     if (String(params.website || '').trim()) {
-      return resultPage_(true, 'Thank you.');
+      return resultPage_(true, 'Thank you.', requestId);
     }
 
     const name = String(params.name || '').trim().slice(0, 100);
@@ -25,7 +27,7 @@ function doPost(e) {
     const sourceUrl = String(params.sourceUrl || '').slice(0, 1000);
 
     if (!/^[6-9][0-9]{9}$/.test(mobile)) {
-      return resultPage_(false, 'कृपया सही 10 अंकों का मोबाइल नंबर दर्ज करें।');
+      return resultPage_(false, 'कृपया सही 10 अंकों का मोबाइल नंबर दर्ज करें।', requestId);
     }
 
     const lock = LockService.getScriptLock();
@@ -37,10 +39,10 @@ function doPost(e) {
       lock.releaseLock();
     }
 
-    return resultPage_(true, 'आपकी inquiry सफलतापूर्वक दर्ज हो गई है।');
+    return resultPage_(true, 'आपकी inquiry सफलतापूर्वक दर्ज हो गई है।', requestId);
   } catch (error) {
     console.error('Inquiry submission failed: ' + error);
-    return resultPage_(false, 'अभी inquiry सेव नहीं हो सकी। कृपया WhatsApp से संपर्क करें।');
+    return resultPage_(false, 'अभी inquiry सेव नहीं हो सकी। कृपया WhatsApp से संपर्क करें।', requestId);
   }
 }
 
@@ -86,14 +88,15 @@ function safeCell_(value) {
   return /^[=+@\\-]/.test(text) ? "'" + text : text;
 }
 
-function resultPage_(ok, message) {
+function resultPage_(ok, message, requestId) {
   const payload = JSON.stringify({
     type: 'orthogold-inquiry-result',
     ok: Boolean(ok),
-    message: String(message || '')
+    message: String(message || ''),
+    requestId: String(requestId || '')
   });
   const html = '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
-    '<script>window.parent.postMessage(' + payload + ', "*");</script>' +
+    '<script>window.top.postMessage(' + payload + ', "*");</script>' +
     '</body></html>';
   return HtmlService.createHtmlOutput(html)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
